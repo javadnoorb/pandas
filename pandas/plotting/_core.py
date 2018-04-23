@@ -790,6 +790,7 @@ class MPLPlot(object):
             points = ax.get_position().get_points()
             x_set.add(points[0][0])
             y_set.add(points[0][1])
+#        print("len y, len x = {}, {}".format(len(y_set), len(x_set)))
         return (len(y_set), len(x_set))
 
 
@@ -881,6 +882,7 @@ class ScatterPlot(PlanePlot):
                                   points[0, 1],
                                   cbar_points[1, 0] - cbar_points[0, 0],
                                   points[1, 1] - points[0, 1]])
+#            print(points, '\n', cbar_points)
         if label is not None:
             self._add_legend_handle(scatter, label)
         else:
