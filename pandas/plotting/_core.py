@@ -1754,6 +1754,7 @@ for klass in _klasses:
 
 def _plot(data, x=None, y=None, subplots=False,
           ax=None, kind='line', **kwds):
+    
     kind = _get_standard_kind(kind.lower().strip())
     if kind in _all_kinds:
         klass = _plot_klass[kind]

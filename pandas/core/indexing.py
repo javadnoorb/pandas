@@ -1493,6 +1493,7 @@ class _LocationIndexer(_NDFrameIndexer):
     _exception = Exception
 
     def __getitem__(self, key):
+        print('_getitem_', key)
         if type(key) is tuple:
             key = tuple(com._apply_if_callable(x, self.obj)
                         for x in key)

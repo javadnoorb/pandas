@@ -495,6 +495,7 @@ class InvalidApply(Exception):
 
 def apply_frame_axis0(object frame, object f, object names,
                       ndarray[int64_t] starts, ndarray[int64_t] ends):
+    print('...........................CYTHON...............................')
     cdef:
         BlockSlider slider
         Py_ssize_t i, n = len(starts)
@@ -513,11 +514,14 @@ def apply_frame_axis0(object frame, object f, object names,
         object.__setattr__(chunk, 'name', names[0])
         try:
             result = f(chunk)
+            print('...........................CYTHON...............................')
+            print('cython result == ', result)
             if result is chunk:
                 raise InvalidApply('Function unsafe for fast apply')
         except:
             raise InvalidApply('Let this error raise above us')
 
+    piece = result
     slider = BlockSlider(frame)
 
     mutated = False
@@ -529,12 +533,15 @@ def apply_frame_axis0(object frame, object f, object names,
             item_cache.clear()  # ugh
 
             object.__setattr__(slider.dummy, 'name', names[i])
-            piece = f(slider.dummy)
-
+            print('...........................CYTHON...............................', i)
+            if i > 0:
+                piece = f(slider.dummy)
+            print('cython piece == ', piece)
             # I'm paying the price for index-sharing, ugh
             try:
                 if piece.index is slider.dummy.index:
                     piece = piece.copy(deep='all')
+                    print('cython piece in try == ', piece)
                 else:
                     mutated = True
             except AttributeError:

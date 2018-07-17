@@ -316,25 +316,29 @@ Examples
 
 # special case to prevent duplicate plots when catching exceptions when
 # forwarding methods from NDFrames
-_plotting_methods = frozenset(['plot', 'boxplot', 'hist'])
+# _plotting_methods = frozenset(['plot', 'boxplot', 'hist'])
+_plotting_methods = frozenset(['plottt'])
 
 _common_apply_whitelist = frozenset([
-    'last', 'first',
-    'head', 'tail', 'median',
-    'mean', 'sum', 'min', 'max',
-    'cumcount', 'ngroup',
-    'resample',
-    'rank', 'quantile',
-    'fillna',
-    'mad',
-    'any', 'all',
-    'take',
-    'idxmax', 'idxmin',
-    'shift', 'tshift',
-    'ffill', 'bfill',
-    'pct_change', 'skew',
-    'corr', 'cov', 'diff',
 ]) | _plotting_methods
+
+# _common_apply_whitelist = frozenset([
+#     'last', 'first',
+#     'head', 'tail', 'median',
+#     'mean', 'sum', 'min', 'max',
+#     'cumcount', 'ngroup',
+#     'resample',
+#     'rank', 'quantile',
+#     'fillna',
+#     'mad',
+#     'any', 'all',
+#     'take',
+#     'idxmax', 'idxmin',
+#     'shift', 'tshift',
+#     'ffill', 'bfill',
+#     'pct_change', 'skew',
+#     'corr', 'cov', 'diff',
+# ]) | _plotting_methods
 
 _series_apply_whitelist = ((_common_apply_whitelist |
                             {'nlargest', 'nsmallest',
@@ -535,18 +539,31 @@ class GroupByPlot(PandasObject):
 
     def __init__(self, groupby):
         self._groupby = groupby
+        self.myflag1 = 0
 
-    def __call__(self, *args, **kwargs):
-        def f(self):
-            return self.plot(*args, **kwargs)
-        f.__name__ = 'plot'
-        return self._groupby.apply(f)
+    # def __call__(self, *args, **kwargs):
+    #     def f(self):
+    #         return self.plot(*args, **kwargs)
+    #     f.__name__ = 'plot'
+    #     return self._groupby.apply(f)
 
     def __getattr__(self, name):
+        print('__getattr__ name == ', name)
         def attr(*args, **kwargs):
             def f(self):
-                return getattr(self.plot, name)(*args, **kwargs)
-            return self._groupby.apply(f)
+                print('atttrrrrr', self)
+                print('type self === ', type(self))
+                # selfplot = self.plot
+                # print('selfplot = ', selfplot)
+                # return getattr(selfplot, name)(*args, **kwargs)
+                return self.sum()
+            print("GRRROOOPBY", list(self._groupby))
+            resultssss = self._groupby.apply(f)
+            print('resultssss = ', resultssss)
+            return resultssss
+
+        print('type self outside === ', type(self))
+        print('attr == ', attr)
         return attr
 
 
@@ -787,8 +804,8 @@ b  2""")
     def pipe(self, func, *args, **kwargs):
         return com._pipe(self, func, *args, **kwargs)
 
-    plot = property(GroupByPlot)
-
+    plottt = property(GroupByPlot)
+    # print('is this plot ever encountered?')
     def _make_wrapper(self, name):
         if name not in self._apply_whitelist:
             is_callable = callable(getattr(self._selected_obj, name, None))
@@ -893,9 +910,9 @@ b  2""")
               .format(input="dataframe",
                       examples=_apply_docs['dataframe_examples']))
     def apply(self, func, *args, **kwargs):
-
+        print('ckpt # 1')
         func = self._is_builtin_func(func)
-
+        print('ckpt # 2')
         # this is needed so we don't try and wrap strings. If we could
         # resolve functions to their callable functions prior, this
         # wouldn't be needed
@@ -905,17 +922,22 @@ b  2""")
                 @wraps(func)
                 def f(g):
                     with np.errstate(all='ignore'):
+                        print('ckpt # 3')
                         return func(g, *args, **kwargs)
             else:
                 raise ValueError('func must be a callable if args or '
                                  'kwargs are supplied')
         else:
+            print('ckpt # 4')
             f = func
 
         # ignore SettingWithCopy here in case the user mutates
         with option_context('mode.chained_assignment', None):
             try:
+                # print('_python_apply_general gb 923')
+                print('ckpt # 5')
                 result = self._python_apply_general(f)
+                print('resss _python_apply_general', result)
             except Exception:
 
                 # gh-20949
@@ -927,18 +949,30 @@ b  2""")
                 # on a string grouper column
 
                 with _group_selection_context(self):
+                    print('ckpt # 6')
                     return self._python_apply_general(f)
-
+        print('ckpt # 20')
         return result
 
     def _python_apply_general(self, f):
+        print('ckpt # 8')
+        # print('apply_general_gb_937')
+        # print('f = ', f)
+        # def f(self):
+        #     print('this is f')
+        #     return 'fff!'
         keys, values, mutated = self.grouper.apply(f, self._selected_obj,
                                                    self.axis)
-
-        return self._wrap_applied_output(
+        print('ckpt # 9')
+        this_result = self._wrap_applied_output(
             keys,
             values,
             not_indexed_same=mutated or self.mutated)
+        print('ckpt # 10')
+        print('this_result ==== ', this_result)
+        print('keeeeys ====', keys)
+        print('valueeees ====', values)
+        return this_result
 
     def _iterate_slices(self):
         yield self._selection_name, self._selected_obj
@@ -2224,11 +2258,15 @@ class BaseGrouper(object):
         for each group
         """
         splitter = self._get_splitter(data, axis=axis)
+        # print('splitterrrr', data, splitter)
+
         keys = self._get_group_keys()
         for key, (i, group) in zip(keys, splitter):
+            # print('key_group ', key, group)
             yield key, group
 
     def _get_splitter(self, data, axis=0):
+        # print('splitter groupby 2234')
         comp_ids, _, ngroups = self.group_info
         return get_splitter(data, comp_ids, ngroups, axis=axis)
 
@@ -2245,16 +2283,24 @@ class BaseGrouper(object):
                                           self.labels)
 
     def apply(self, f, data, axis=0):
+        # print('mutated gb 2255')
+        print('ckpt # 8.1')
         mutated = self.mutated
         splitter = self._get_splitter(data, axis=axis)
+        print('ckpt # 8.2')
         group_keys = self._get_group_keys()
-
+        print('ckpt # 8.3')
         # oh boy
         f_name = com._get_callable_name(f)
+        print('ckpt # 8.4')
         if (f_name not in _plotting_methods and
                 hasattr(splitter, 'fast_apply') and axis == 0):
+            print('ckpt # 8.5')
             try:
+                # print('what is the function? ', f, group_keys)
                 values, mutated = splitter.fast_apply(f, group_keys)
+                print('ckpt # 8.6')
+                # print('oh man', values, mutated)
                 return group_keys, values, mutated
             except reduction.InvalidApply:
                 # we detect a mutation of some kind
@@ -2266,15 +2312,17 @@ class BaseGrouper(object):
 
         result_values = []
         for key, (i, group) in zip(group_keys, splitter):
+            print('ckpt # 8.7')
             object.__setattr__(group, 'name', key)
 
             # group might be modified
             group_axes = _get_axes(group)
+            print('group_axes == ', group_axes)
             res = f(group)
             if not _is_indexed_like(res, group_axes):
                 mutated = True
             result_values.append(res)
-
+        print('ckpt # 8.20')
         return group_keys, result_values, mutated
 
     @cache_readonly
@@ -3364,7 +3412,7 @@ def _whitelist_method_generator(klass, whitelist):
     Since we don't want to override methods explicitly defined in the
     base class, any such name is skipped.
     """
-
+    # print('_whitelist_method_generator --> ',klass, whitelist)
     method_wrapper_template = \
         """def %(name)s(%(sig)s) :
     \"""
@@ -5080,15 +5128,34 @@ class FrameSplitter(DataSplitter):
     def fast_apply(self, f, names):
         # must return keys::list, values::list, mutated::bool
         try:
+            print('ckpt # 8.5.1')
+            print(self.slabels, self.ngroups)
             starts, ends = lib.generate_slices(self.slabels, self.ngroups)
+            print('ckpt # 8.5.2')
+            # print('fast_apply ', starts, ends)
         except Exception:
             # fails when all -1
+            print('ckpt # 8.5.3')
             return [], True
-
+        print('ckpt # 8.5.4')
         sdata = self._get_sorted_data()
+        print('ckpt # 8.5.5')
+        print('sdata == ', sdata)
+        print('type sdata == ', type(sdata))
+        print('f == ', f)
+        print('names == ', names)
+        print('starts == ', starts)
+        print('ends', ends)
+
+        # def f():
+        #     print('new f')
         results, mutated = reduction.apply_frame_axis0(sdata, f, names,
                                                        starts, ends)
 
+        print('results ==', results)
+        print('mutated == ', mutated)
+        print('ckpt # 8.5.6')
+        # print('post reduction ', results, mutated)
         return results, mutated
 
     def _chop(self, sdata, slice_obj):
@@ -5127,4 +5194,7 @@ def get_splitter(data, *args, **kwargs):
     else:
         klass = NDFrameSplitter
 
-    return klass(data, *args, **kwargs)
+    ressss = klass(data, *args, **kwargs)
+
+    print('splitter ressss = ', klass(data, *args, **kwargs))
+    return ressss
