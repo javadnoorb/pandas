@@ -14,8 +14,11 @@ import pytest
 
 
 @td.skip_if_no_mpl
-@pytest.mark.parametrize('bins', [5, None, np.linspace(-3, 3, 10)])
-def test_hist_bins_match(bins):
+@pytest.mark.parametrize(
+    'bins, equal_bins',
+    zip([5, None, np.linspace(-3, 3, 10)], [True, False])
+)
+def test_hist_bins_match(bins, equal_bins):
     # GH-22222
     N = 100
     np.random.seed(0)
@@ -23,7 +26,8 @@ def test_hist_bins_match(bins):
                    columns=['rand'])
     df['group'] = [0] * N + [1] * N
     g = df.groupby('group')['rand']
-    ax = g.hist(bins=bins, alpha=0.7, equal_bins=True)[0]
+    axes = g.hist(bins=bins, alpha=0.7, equal_bins=equal_bins)
+    ax = axes[0]
 
     if bins is None:
         num_bins = 10  # default value used in `hist_series`
@@ -32,15 +36,30 @@ def test_hist_bins_match(bins):
     else:
         num_bins = bins
 
-    bin_width_group0 = ax.patches[0].get_width()
-    bin_width_group1 = ax.patches[num_bins].get_width()
-    assert np.isclose(bin_width_group0, bin_width_group1)
+    # individual hist bar coordinates for:
+    # group0: points[:num_bins]
+    # group1: points[num_bins:]
+    points = np.array([patch.get_bbox().get_points()
+                       for patch in ax.patches])
 
-    bars_x_pos_group0 = [patch.get_bbox().get_points()[0, 0]
-                         for patch in ax.patches[:num_bins]]
-    bars_x_pos_group1 = [patch.get_bbox().get_points()[0, 0]
-                         for patch in ax.patches[num_bins:]]
-    assert np.isclose(bars_x_pos_group0, bars_x_pos_group1).all()
+    if equal_bins or type(bins) == np.ndarray:
+        # width of the first bar in each group
+        bin_width_group0 = ax.patches[0].get_width()
+        bin_width_group1 = ax.patches[num_bins].get_width()
+        assert np.isclose(bin_width_group0, bin_width_group1)
+        # compare leftmost point on x-axis for each bar
+        # in the two groups
+        assert np.isclose(points[:num_bins, 0, 0],
+                          points[num_bins:, 0, 0]
+                          ).all()
+    else:
+        # range of values on x-axis (min, max) for each group
+        hist_ranges = DataFrame(
+            [[points[0, 0, 0], points[num_bins - 1, 1, 0]],
+             [points[num_bins, 0, 0], points[-1, 1, 0]]],
+            index=[0, 1], columns=['min', 'max'])
+        group_ranges = g.agg([min, max])
+        assert np.isclose(group_ranges, hist_ranges).all()
     tm.close()
 
 
