@@ -10,23 +10,38 @@ import pandas.util._test_decorators as td
 import numpy as np
 
 from pandas.tests.plotting.common import TestPlotBase
+import pytest
 
 
 @td.skip_if_no_mpl
-def test_hist_bins_match():
+@pytest.mark.parametrize('bins', [5, None, np.linspace(-3, 3, 10)])
+def test_hist_bins_match(bins):
     # GH-22222
     N = 100
-    bins = 5
-
     np.random.seed(0)
     df = DataFrame(np.append(np.random.randn(N), np.random.randn(N) / 10),
                    columns=['rand'])
     df['group'] = [0] * N + [1] * N
     g = df.groupby('group')['rand']
     ax = g.hist(bins=bins, alpha=0.7, equal_bins=True)[0]
+
+    if bins is None:
+        num_bins = 10  # default value used in `hist_series`
+    elif type(bins) == np.ndarray:
+        num_bins = len(bins) - 1
+    else:
+        num_bins = bins
+
     bin_width_group0 = ax.patches[0].get_width()
-    bin_width_group1 = ax.patches[bins].get_width()
+    bin_width_group1 = ax.patches[num_bins].get_width()
     assert np.isclose(bin_width_group0, bin_width_group1)
+
+    bars_x_pos_group0 = [patch.get_bbox().get_points()[0, 0]
+                         for patch in ax.patches[:num_bins]]
+    bars_x_pos_group1 = [patch.get_bbox().get_points()[0, 0]
+                         for patch in ax.patches[num_bins:]]
+    assert np.isclose(bars_x_pos_group0, bars_x_pos_group1).all()
+    tm.close()
 
 
 @td.skip_if_no_mpl
